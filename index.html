@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TimeChimp Table Tennis Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>TimeChimp Table Tennis Tracker</h1>
+
+      <nav class="tabs" aria-label="Main pages">
+        <button class="tab-button active" data-tab="recording">Match Recording</button>
+        <button class="tab-button" data-tab="scoreboard">Scoreboard</button>
+        <button class="tab-button" data-tab="history">Match History</button>
+      </nav>
+
+      <section id="recording" class="tab-panel active">
+        <h2>Record a Match</h2>
+        <form id="match-form" class="match-form">
+          <div id="player1-card" class="player-card">
+            <label for="player1">Player 1</label>
+            <select id="player1">
+              <option value="">Choose player</option>
+            </select>
+
+            <label for="score1">Score</label>
+            <input id="score1" type="number" min="0" step="1" placeholder="0" required />
+          </div>
+
+          <div id="player2-card" class="player-card">
+            <label for="player2">Player 2</label>
+            <select id="player2">
+              <option value="">Choose player</option>
+            </select>
+
+            <label for="score2">Score</label>
+            <input id="score2" type="number" min="0" step="1" placeholder="0" required />
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary-btn">Save Match</button>
+            <button type="button" id="clear-match-btn" class="secondary-btn">Clear Match</button>
+          </div>
+        </form>
+
+        <div class="messages" aria-live="polite">
+          <p id="error-missing-players" class="save-message error-missing-players"></p>
+          <p id="error-same-player" class="save-message error-same-player"></p>
+          <p id="error-min-score" class="save-message error-min-score"></p>
+          <p id="error-score-difference" class="save-message error-score-difference"></p>
+          <p id="success-match-saved" class="save-message success-match-saved"></p>
+        </div>
+      </section>
+
+      <section id="scoreboard" class="tab-panel">
+        <h2>Scoreboard</h2>
+        <form id="add-player-form" class="add-player-form">
+          <label for="new-player-name">Add player</label>
+          <div class="add-player-row">
+            <input id="new-player-name" type="text" placeholder="Enter player name" />
+            <button type="submit" class="primary-btn">Add Player</button>
+          </div>
+          <p id="add-player-message" class="add-player-message"></p>
+        </form>
+
+        <div class="scoreboard-wrap">
+          <table class="scoreboard-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="playerName">
+                    Player
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="games">Games</button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="wins">Wins</button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="losses">Losses</button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="pointsScored">
+                    Points Scored
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="pointsLost">
+                    Points Against
+                  </button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="winPercentage">
+                    Win Ratio
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="scoreboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="history" class="tab-panel">
+        <h2>Match History</h2>
+        <div class="history-header">
+          <div class="history-header-cell">Players</div>
+          <div class="history-header-cell">Score</div>
+          <div class="history-header-cell">Date</div>
+          <div class="history-header-cell history-header-actions"></div>
+        </div>
+        <div id="history-list" class="history-list">
+          <p class="panel-note">No saved matches yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <div id="tsparticles"></div>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles-engine@2/tsparticles.engine.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      window.APP_CONFIG = {
+        SUPABASE_URL: "https://hyfsxfpoddkhdmkydkof.supabase.co",
+        SUPABASE_ANON_KEY: "sb_publishable_Lqw7IkVTFGKV1M6w0MRizw_0svFWg6V",
+      };
+    </script>
+    <script src="script.js"></script>
+  </body>
+</html>
