@@ -3,10 +3,6 @@ const DEFAULT_PLAYERS = ["Jorrit", "Tom", "Maksym", "Komeil", "Stephanus", "Cher
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabPanels = document.querySelectorAll(".tab-panel");
 
-const player1Select = document.getElementById("player1");
-const player2Select = document.getElementById("player2");
-const player1Card = document.getElementById("player1-card");
-const player2Card = document.getElementById("player2-card");
 const score1Input = document.getElementById("score1");
 const score2Input = document.getElementById("score2");
 const matchForm = document.getElementById("match-form");
@@ -16,12 +12,32 @@ const errorSamePlayerMessage = document.getElementById("error-same-player");
 const errorMinScoreMessage = document.getElementById("error-min-score");
 const errorScoreDifferenceMessage = document.getElementById("error-score-difference");
 const successMatchSavedMessage = document.getElementById("success-match-saved");
-const addPlayerForm = document.getElementById("add-player-form");
-const newPlayerNameInput = document.getElementById("new-player-name");
-const addPlayerMessage = document.getElementById("add-player-message");
 const scoreboardBody = document.getElementById("scoreboard-body");
 const sortButtons = document.querySelectorAll(".sort-button");
 const historyList = document.getElementById("history-list");
+const matchupPlayer1Select = document.getElementById("matchup-player1");
+const matchupPlayer2Select = document.getElementById("matchup-player2");
+const matchupElo1 = document.getElementById("matchup-elo1");
+const matchupElo2 = document.getElementById("matchup-elo2");
+const matchupChance1 = document.getElementById("matchup-chance1");
+const matchupChance2 = document.getElementById("matchup-chance2");
+const matchupPlayer1Last5 = document.getElementById("matchup-player1-last5");
+const matchupPlayer2Last5 = document.getElementById("matchup-player2-last5");
+const matchupEloGain1 = document.getElementById("matchup-elo-gain1");
+const matchupEloGain2 = document.getElementById("matchup-elo-gain2");
+const matchupPlayer1Block = document.getElementById("matchup-player1-block");
+const matchupPlayer2Block = document.getElementById("matchup-player2-block");
+const score1Label = document.getElementById("score1-label");
+const score2Label = document.getElementById("score2-label");
+const dashboardPlayerSelect = document.getElementById("dashboard-player");
+const dashboardWinrate = document.getElementById("dashboard-winrate");
+const dashboardAvgPoints = document.getElementById("dashboard-avg-points");
+const dashboardWinstreak = document.getElementById("dashboard-winstreak");
+const dashboardTotalMatches = document.getElementById("dashboard-total-matches");
+const dashboardEloGraph = document.getElementById("dashboard-elo-graph");
+const dashboardEloSvg = document.getElementById("dashboard-elo-svg");
+const dashboardEloEmpty = document.getElementById("dashboard-elo-empty");
+const dashboardMatchHistory = document.getElementById("dashboard-match-history");
 
 const supabaseConfig = window.APP_CONFIG || {};
 const supabaseClient =
@@ -32,12 +48,29 @@ const supabaseClient =
       )
     : null;
 
+const ELO_K = 32;
+const ELO_INITIAL = 1000;
+
 let players = [];
 let matches = [];
 let currentScoreboardSort = {
   key: "winPercentage",
   direction: "desc",
 };
+
+function eloExpectedScore(ratingA, ratingB) {
+  return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+}
+
+function updateEloAfterMatch(rating1, rating2, player1Won) {
+  const E1 = eloExpectedScore(rating1, rating2);
+  const E2 = eloExpectedScore(rating2, rating1);
+  const S1 = player1Won ? 1 : 0;
+  const S2 = player1Won ? 0 : 1;
+  const new1 = Math.round(rating1 + ELO_K * (S1 - E1));
+  const new2 = Math.round(rating2 + ELO_K * (S2 - E2));
+  return { new1, new2 };
+}
 
 const CONFETTI_BASE_OPTIONS = {
   fullScreen: { zIndex: 10 },
@@ -113,26 +146,357 @@ function setupTabs() {
 }
 
 function populatePlayerSelects() {
-  const selectedPlayer1 = player1Select.value;
-  const selectedPlayer2 = player2Select.value;
+  populateMatchupSelects();
+  populateDashboardSelect();
+}
 
-  player1Select.innerHTML = '<option value="">Choose player</option>';
-  player2Select.innerHTML = '<option value="">Choose player</option>';
+function populateMatchupSelects() {
+  if (!matchupPlayer1Select || !matchupPlayer2Select) return;
+  const sel1 = matchupPlayer1Select.value;
+  const sel2 = matchupPlayer2Select.value;
 
-  players.forEach((playerName) => {
-    const optionOne = document.createElement("option");
-    optionOne.value = playerName;
-    optionOne.textContent = playerName;
-    player1Select.appendChild(optionOne);
+  matchupPlayer1Select.innerHTML = '<option value="">Choose player</option>';
+  matchupPlayer2Select.innerHTML = '<option value="">Choose player</option>';
 
-    const optionTwo = document.createElement("option");
-    optionTwo.value = playerName;
-    optionTwo.textContent = playerName;
-    player2Select.appendChild(optionTwo);
+  players.forEach((player) => {
+    const name = typeof player === "string" ? player : player.name;
+    const opt1 = document.createElement("option");
+    opt1.value = name;
+    opt1.textContent = name;
+    matchupPlayer1Select.appendChild(opt1);
+    const opt2 = document.createElement("option");
+    opt2.value = name;
+    opt2.textContent = name;
+    matchupPlayer2Select.appendChild(opt2);
   });
 
-  if (players.includes(selectedPlayer1)) player1Select.value = selectedPlayer1;
-  if (players.includes(selectedPlayer2)) player2Select.value = selectedPlayer2;
+  const names = players.map((p) => (typeof p === "string" ? p : p.name));
+  if (names.includes(sel1)) matchupPlayer1Select.value = sel1;
+  if (names.includes(sel2)) matchupPlayer2Select.value = sel2;
+  updateMatchupDisplay();
+}
+
+function updateMatchupDisplay() {
+  const name1 = matchupPlayer1Select?.value?.trim() || "";
+  const name2 = matchupPlayer2Select?.value?.trim() || "";
+  if (score1Label) score1Label.textContent = name1 ? `${name1} Score` : "Player 1 Score";
+  if (score2Label) score2Label.textContent = name2 ? `${name2} Score` : "Player 2 Score";
+  if (!matchupElo1 || !matchupElo2 || !matchupChance1 || !matchupChance2) return;
+
+  if (!name1 || !name2) {
+    matchupElo1.textContent = "";
+    matchupElo2.textContent = "";
+    matchupChance1.textContent = "";
+    matchupChance2.textContent = "";
+    if (matchupEloGain1) matchupEloGain1.textContent = "";
+    if (matchupEloGain2) matchupEloGain2.textContent = "";
+    renderMatchupHistory(name1, name2);
+    return;
+  }
+  if (name1 === name2) {
+    matchupElo1.textContent = `Elo: ${getPlayerElo(name1)}`;
+    matchupElo2.textContent = `Elo: ${getPlayerElo(name2)}`;
+    matchupChance1.textContent = "Same player — choose two different players.";
+    matchupChance2.textContent = "";
+    if (matchupEloGain1) matchupEloGain1.textContent = "";
+    if (matchupEloGain2) matchupEloGain2.textContent = "";
+    renderMatchupHistory(name1, name2);
+    return;
+  }
+
+  const elo1 = getPlayerElo(name1);
+  const elo2 = getPlayerElo(name2);
+  const chance1 = eloExpectedScore(elo1, elo2);
+  const chance2 = 1 - chance1;
+
+  const if1Wins = updateEloAfterMatch(elo1, elo2, true);
+  const if2Wins = updateEloAfterMatch(elo1, elo2, false);
+  const gain1IfWin = if1Wins.new1 - elo1;
+  const gain2IfWin = if2Wins.new2 - elo2;
+
+  matchupElo1.textContent = `Elo: ${elo1}`;
+  matchupElo2.textContent = `Elo: ${elo2}`;
+  matchupChance1.textContent = `${(chance1 * 100).toFixed(1)}% chance to win`;
+  matchupChance2.textContent = `${(chance2 * 100).toFixed(1)}% chance to win`;
+  if (matchupEloGain1) matchupEloGain1.textContent = `+${gain1IfWin} if you win`;
+  if (matchupEloGain2) matchupEloGain2.textContent = `+${gain2IfWin} if you win`;
+
+  renderMatchupHistory(name1, name2);
+}
+
+function getMatchesForPlayer(playerName) {
+  const name = playerName.trim().toLowerCase();
+  return matches.filter(
+    (m) =>
+      m.player1.toLowerCase() === name || m.player2.toLowerCase() === name
+  );
+}
+
+function getHeadToHeadMatches(name1, name2) {
+  const n1 = name1.trim().toLowerCase();
+  const n2 = name2.trim().toLowerCase();
+  return matches.filter((m) => {
+    const p1 = m.player1.toLowerCase();
+    const p2 = m.player2.toLowerCase();
+    return (p1 === n1 && p2 === n2) || (p1 === n2 && p2 === n1);
+  });
+}
+
+function getWinsAndLosses(matchesForPlayer, playerName) {
+  const name = playerName.trim().toLowerCase();
+  let wins = 0;
+  let losses = 0;
+  matchesForPlayer.forEach((m) => {
+    const isPlayer1 = m.player1.toLowerCase() === name;
+    const won = isPlayer1 ? m.score1 > m.score2 : m.score2 > m.score1;
+    if (won) wins += 1;
+    else losses += 1;
+  });
+  return { wins, losses };
+}
+
+function recentFormLetters(matchesForPlayer, playerName, limit = 5) {
+  const name = playerName.trim().toLowerCase();
+  return matchesForPlayer
+    .slice()
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, limit)
+    .map((m) => {
+      const isP1 = m.player1.toLowerCase() === name;
+      const won = isP1 ? m.score1 > m.score2 : m.score2 > m.score1;
+      return won ? "W" : "L";
+    });
+}
+
+function renderLast5Html(letters) {
+  if (!letters.length) return "Last 5: —";
+  const spans = letters
+    .map((l) => `<span class="form-${l.toLowerCase()}">${l}</span>`)
+    .join(" ");
+  return `Last 5: ${spans}`;
+}
+
+function renderMatchupHistory(name1, name2) {
+  if (!matchupPlayer1Last5 || !matchupPlayer2Last5) return;
+
+  if (!name1 || !name2 || name1 === name2) {
+    matchupPlayer1Last5.innerHTML = "";
+    matchupPlayer2Last5.innerHTML = "";
+    return;
+  }
+
+  const p1Matches = getMatchesForPlayer(name1);
+  const p2Matches = getMatchesForPlayer(name2);
+  const p1Letters = recentFormLetters(p1Matches, name1);
+  const p2Letters = recentFormLetters(p2Matches, name2);
+
+  matchupPlayer1Last5.innerHTML = renderLast5Html(p1Letters);
+  matchupPlayer2Last5.innerHTML = renderLast5Html(p2Letters);
+}
+
+function setupMatchupTab() {
+  if (!matchupPlayer1Select || !matchupPlayer2Select) return;
+  matchupPlayer1Select.addEventListener("change", updateMatchupDisplay);
+  matchupPlayer2Select.addEventListener("change", updateMatchupDisplay);
+}
+
+function computePlayerDashboardStats(playerName) {
+  const name = playerName.trim().toLowerCase();
+  const playerMatches = matches.filter(
+    (m) => m.player1.toLowerCase() === name || m.player2.toLowerCase() === name
+  );
+  const total = playerMatches.length;
+  if (total === 0) {
+    return { winRate: null, avgPointsPerGame: null, currentWinStreak: 0, totalMatches: 0 };
+  }
+  let wins = 0;
+  let totalPointsScored = 0;
+  playerMatches.forEach((m) => {
+    const isP1 = m.player1.toLowerCase() === name;
+    const won = isP1 ? m.score1 > m.score2 : m.score2 > m.score1;
+    if (won) wins += 1;
+    totalPointsScored += isP1 ? m.score1 : m.score2;
+  });
+  const winRate = total > 0 ? (wins / total) * 100 : 0;
+  const avgPointsPerGame = total > 0 ? totalPointsScored / total : 0;
+  const sorted = playerMatches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  let streak = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    const isP1 = m.player1.toLowerCase() === name;
+    if ((isP1 && m.score1 > m.score2) || (!isP1 && m.score2 > m.score1)) streak += 1;
+    else break;
+  }
+  return {
+    winRate,
+    avgPointsPerGame: Math.round(avgPointsPerGame * 10) / 10,
+    currentWinStreak: streak,
+    totalMatches: total,
+  };
+}
+
+function computeEloHistory(playerName) {
+  const name = playerName.trim().toLowerCase();
+  const sorted = matches.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+  const ratings = {};
+  const points = [];
+  let firstDateForPlayer = null;
+  for (const m of sorted) {
+    const r1 = ratings[m.player1.toLowerCase()] ?? ELO_INITIAL;
+    const r2 = ratings[m.player2.toLowerCase()] ?? ELO_INITIAL;
+    const player1Won = m.score1 > m.score2;
+    const { new1, new2 } = updateEloAfterMatch(r1, r2, player1Won);
+    ratings[m.player1.toLowerCase()] = new1;
+    ratings[m.player2.toLowerCase()] = new2;
+    const p1Name = m.player1.toLowerCase();
+    const p2Name = m.player2.toLowerCase();
+    if (p1Name === name) {
+      if (firstDateForPlayer === null) {
+        firstDateForPlayer = m.date;
+        points.push({ date: m.date, elo: ELO_INITIAL });
+      }
+      points.push({ date: m.date, elo: new1 });
+    } else if (p2Name === name) {
+      if (firstDateForPlayer === null) {
+        firstDateForPlayer = m.date;
+        points.push({ date: m.date, elo: ELO_INITIAL });
+      }
+      points.push({ date: m.date, elo: new2 });
+    }
+  }
+  return points;
+}
+
+function renderDashboardStats(stats) {
+  if (!dashboardWinrate || !dashboardAvgPoints || !dashboardWinstreak || !dashboardTotalMatches) return;
+  if (stats.totalMatches === 0) {
+    dashboardWinrate.textContent = "—";
+    dashboardAvgPoints.textContent = "—";
+    dashboardWinstreak.textContent = "0";
+    dashboardTotalMatches.textContent = "0";
+    return;
+  }
+  dashboardWinrate.textContent = `${stats.winRate.toFixed(1)}%`;
+  dashboardAvgPoints.textContent = String(stats.avgPointsPerGame);
+  dashboardWinstreak.textContent = String(stats.currentWinStreak);
+  dashboardTotalMatches.textContent = String(stats.totalMatches);
+}
+
+function renderDashboardEloGraph(eloHistory) {
+  if (!dashboardEloSvg || !dashboardEloGraph || !dashboardEloEmpty) return;
+  if (!eloHistory || eloHistory.length === 0) {
+    dashboardEloGraph.style.display = "none";
+    dashboardEloEmpty.style.display = "block";
+    dashboardEloEmpty.textContent = "No match history — Elo will appear after matches.";
+    return;
+  }
+  dashboardEloEmpty.style.display = "none";
+  dashboardEloGraph.style.display = "block";
+  const padding = { top: 20, right: 20, bottom: 30, left: 40 };
+  const w = 400;
+  const h = 200;
+  const elos = eloHistory.map((p) => p.elo);
+  const minElo = Math.min(...elos);
+  const maxElo = Math.max(...elos);
+  const range = maxElo - minElo || 1;
+  const eloMin = Math.floor(minElo - range * 0.1);
+  const eloMax = Math.ceil(maxElo + range * 0.1);
+  const chartW = w - padding.left - padding.right;
+  const chartH = h - padding.top - padding.bottom;
+  const xScale = (i) => padding.left + (i / (eloHistory.length - 1 || 1)) * chartW;
+  const yScale = (elo) => padding.top + chartH - ((elo - eloMin) / (eloMax - eloMin)) * chartH;
+  let pathD = "";
+  eloHistory.forEach((p, i) => {
+    const x = xScale(i);
+    const y = yScale(p.elo);
+    pathD += (i === 0 ? "M" : "L") + `${x},${y}`;
+  });
+  const yTicks = [eloMin, Math.round((eloMin + eloMax) / 2), eloMax];
+  let svg = `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
+  svg += `<line x1="${padding.left}" y1="${h - padding.bottom}" x2="${w - padding.right}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
+  yTicks.forEach((t) => {
+    const y = yScale(t);
+    svg += `<text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748b">${t}</text>`;
+  });
+  svg += `<path d="${pathD}" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  eloHistory.forEach((p, i) => {
+    const x = xScale(i);
+    const y = yScale(p.elo);
+    svg += `<circle cx="${x}" cy="${y}" r="3" fill="#4F46E5"/>`;
+  });
+  dashboardEloSvg.innerHTML = svg;
+}
+
+function renderDashboardMatchHistory(playerName) {
+  if (!dashboardMatchHistory) return;
+  const name = playerName.trim().toLowerCase();
+  const playerMatches = matches
+    .filter((m) => m.player1.toLowerCase() === name || m.player2.toLowerCase() === name)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (playerMatches.length === 0) {
+    dashboardMatchHistory.innerHTML = '<p class="panel-note">No matches yet.</p>';
+    return;
+  }
+  dashboardMatchHistory.innerHTML = "";
+  playerMatches.forEach((m) => {
+    const isP1 = m.player1.toLowerCase() === name;
+    const opponent = isP1 ? m.player2 : m.player1;
+    const myScore = isP1 ? m.score1 : m.score2;
+    const oppScore = isP1 ? m.score2 : m.score1;
+    const won = myScore > oppScore;
+    const row = document.createElement("div");
+    row.className = "dashboard-history-row";
+    row.innerHTML = `
+      <span class="dashboard-history-result ${won ? "win" : "loss"}">${won ? "W" : "L"}</span>
+      <span class="dashboard-history-opponent">vs ${opponent}</span>
+      <span class="dashboard-history-score">${myScore}-${oppScore}</span>
+      <span class="dashboard-history-date">${formatMatchDate(m.date)}</span>
+    `;
+    dashboardMatchHistory.appendChild(row);
+  });
+}
+
+function updateDashboard() {
+  const playerName = dashboardPlayerSelect?.value?.trim() || "";
+  if (!playerName) {
+    if (dashboardWinrate) dashboardWinrate.textContent = "—";
+    if (dashboardAvgPoints) dashboardAvgPoints.textContent = "—";
+    if (dashboardWinstreak) dashboardWinstreak.textContent = "—";
+    if (dashboardTotalMatches) dashboardTotalMatches.textContent = "—";
+    if (dashboardEloEmpty) {
+      dashboardEloEmpty.style.display = "block";
+      dashboardEloEmpty.textContent = "Select a player to see Elo history.";
+    }
+    if (dashboardEloGraph) dashboardEloGraph.style.display = "none";
+    if (dashboardMatchHistory) dashboardMatchHistory.innerHTML = '<p class="panel-note">Select a player to see their matches.</p>';
+    return;
+  }
+  const stats = computePlayerDashboardStats(playerName);
+  const eloHistory = computeEloHistory(playerName);
+  renderDashboardStats(stats);
+  renderDashboardEloGraph(eloHistory);
+  renderDashboardMatchHistory(playerName);
+}
+
+function populateDashboardSelect() {
+  if (!dashboardPlayerSelect) return;
+  const sel = dashboardPlayerSelect.value;
+  dashboardPlayerSelect.innerHTML = '<option value="">Choose player</option>';
+  players.forEach((player) => {
+    const name = typeof player === "string" ? player : player.name;
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    dashboardPlayerSelect.appendChild(opt);
+  });
+  const names = players.map((p) => (typeof p === "string" ? p : p.name));
+  if (names.includes(sel)) dashboardPlayerSelect.value = sel;
+  updateDashboard();
+}
+
+function setupDashboardTab() {
+  if (!dashboardPlayerSelect) return;
+  dashboardPlayerSelect.addEventListener("change", updateDashboard);
 }
 
 async function fetchPlayersFromDatabase() {
@@ -140,7 +504,7 @@ async function fetchPlayersFromDatabase() {
 
   const { data, error } = await supabaseClient
     .from("players")
-    .select("name")
+    .select("name, elo_rating")
     .order("name", { ascending: true });
 
   if (error) {
@@ -148,13 +512,16 @@ async function fetchPlayersFromDatabase() {
     return [];
   }
 
-  return (data || []).map((row) => row.name);
+  return (data || []).map((row) => ({
+    name: row.name,
+    eloRating: row.elo_rating != null ? row.elo_rating : ELO_INITIAL,
+  }));
 }
 
 async function seedDefaultPlayersIfNeeded() {
   if (!supabaseClient || players.length > 0) return;
 
-  const payload = DEFAULT_PLAYERS.map((name) => ({ name }));
+  const payload = DEFAULT_PLAYERS.map((name) => ({ name, elo_rating: ELO_INITIAL }));
   const { error } = await supabaseClient
     .from("players")
     .upsert(payload, { onConflict: "name", ignoreDuplicates: true });
@@ -169,7 +536,7 @@ async function fetchMatchesFromDatabase() {
 
   const { data, error } = await supabaseClient
     .from("matches")
-    .select("id, player1_name, player2_name, score1, score2, match_date, created_at")
+    .select("id, player1_name, player2_name, score1, score2, match_date, elo_change1, elo_change2, created_at")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -184,13 +551,17 @@ async function fetchMatchesFromDatabase() {
     score1: row.score1,
     score2: row.score2,
     date: row.match_date,
+    eloChange1: row.elo_change1 != null ? row.elo_change1 : null,
+    eloChange2: row.elo_change2 != null ? row.elo_change2 : null,
   }));
 }
 
 async function insertPlayerToDatabase(playerName) {
   if (!supabaseClient) return false;
 
-  const { error } = await supabaseClient.from("players").insert({ name: playerName });
+  const { error } = await supabaseClient
+    .from("players")
+    .insert({ name: playerName, elo_rating: ELO_INITIAL });
   if (error) {
     showDatabaseError("adding player", error);
     return false;
@@ -199,8 +570,28 @@ async function insertPlayerToDatabase(playerName) {
   return true;
 }
 
+async function updatePlayerEloInDatabase(playerName, newElo) {
+  if (!supabaseClient) return false;
+  const { error } = await supabaseClient
+    .from("players")
+    .update({ elo_rating: newElo })
+    .eq("name", playerName);
+  if (error) {
+    showDatabaseError("updating Elo", error);
+    return false;
+  }
+  return true;
+}
+
 async function insertMatchToDatabase(match) {
   if (!supabaseClient) return false;
+
+  const rating1 = getPlayerElo(match.player1);
+  const rating2 = getPlayerElo(match.player2);
+  const player1Won = match.score1 > match.score2;
+  const { new1, new2 } = updateEloAfterMatch(rating1, rating2, player1Won);
+  const eloChange1 = new1 - rating1;
+  const eloChange2 = new2 - rating2;
 
   const payload = {
     player1_name: match.player1,
@@ -208,6 +599,8 @@ async function insertMatchToDatabase(match) {
     score1: match.score1,
     score2: match.score2,
     match_date: new Date().toISOString().slice(0, 10),
+    elo_change1: eloChange1,
+    elo_change2: eloChange2,
   };
 
   const { error } = await supabaseClient.from("matches").insert(payload);
@@ -216,7 +609,19 @@ async function insertMatchToDatabase(match) {
     return false;
   }
 
+  const ok1 = await updatePlayerEloInDatabase(match.player1, new1);
+  const ok2 = await updatePlayerEloInDatabase(match.player2, new2);
+  if (!ok1 || !ok2) return true;
+
   return true;
+}
+
+function getPlayerElo(playerName) {
+  const p = players.find(
+    (x) => (typeof x === "string" ? x : x.name).toLowerCase() === playerName.toLowerCase()
+  );
+  if (!p) return ELO_INITIAL;
+  return typeof p === "string" ? ELO_INITIAL : p.eloRating;
 }
 
 async function deleteMatchFromDatabase(matchId) {
@@ -277,10 +682,10 @@ function showMatchSavedMessage() {
 
 function isMatchFormEmpty() {
   return (
-    player1Select.value === "" &&
-    player2Select.value === "" &&
-    score1Input.value.trim() === "" &&
-    score2Input.value.trim() === ""
+    (!matchupPlayer1Select || matchupPlayer1Select.value === "") &&
+    (!matchupPlayer2Select || matchupPlayer2Select.value === "") &&
+    (!score1Input || score1Input.value.trim() === "") &&
+    (!score2Input || score2Input.value.trim() === "")
   );
 }
 
@@ -338,52 +743,37 @@ function renderHistory() {
       score.className = "history-cell history-score";
       score.textContent = `${match.score1} - ${match.score2}`;
 
+      const eloCell = document.createElement("div");
+      eloCell.className = "history-cell history-elo";
+      if (match.eloChange1 != null && match.eloChange2 != null) {
+        const s1 = match.eloChange1 >= 0 ? `+${match.eloChange1}` : String(match.eloChange1);
+        const s2 = match.eloChange2 >= 0 ? `+${match.eloChange2}` : String(match.eloChange2);
+        eloCell.textContent = `${s1} / ${s2}`;
+      } else {
+        eloCell.textContent = "—";
+      }
+
       const date = document.createElement("div");
       date.className = "history-cell history-date";
       date.textContent = formatMatchDate(match.date);
 
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
-      deleteButton.className = "history-delete-btn";
-      deleteButton.dataset.matchId = String(match.id);
-      deleteButton.title = "Delete match";
-      deleteButton.setAttribute("aria-label", "Delete match");
-      deleteButton.innerHTML = '<img src="assets/trash-2.svg" alt="" class="history-delete-icon" />';
-
       item.appendChild(matchup);
       item.appendChild(score);
+      item.appendChild(eloCell);
       item.appendChild(date);
-      item.appendChild(deleteButton);
       historyList.appendChild(item);
     });
-}
-
-function setupHistoryActions() {
-  historyList.addEventListener("click", async (event) => {
-    const deleteButton = event.target.closest(".history-delete-btn");
-    if (!deleteButton) return;
-
-    const matchId = Number(deleteButton.dataset.matchId);
-    if (Number.isNaN(matchId)) return;
-
-    const isConfirmed = window.confirm("Are you sure you want to delete this match?");
-    if (!isConfirmed) return;
-
-    const deleted = await deleteMatchFromDatabase(matchId);
-    if (!deleted) return;
-
-    matches = await fetchMatchesFromDatabase();
-    renderHistory();
-    renderScoreboard();
-  });
 }
 
 function calculateScoreboardRows(matchRows) {
   const statsByPlayer = {};
 
-  players.forEach((playerName) => {
-    statsByPlayer[playerName] = {
-      playerName,
+  players.forEach((player) => {
+    const name = typeof player === "string" ? player : player.name;
+    const eloRating = typeof player === "string" ? ELO_INITIAL : player.eloRating;
+    statsByPlayer[name] = {
+      playerName: name,
+      eloRating,
       games: 0,
       wins: 0,
       losses: 0,
@@ -399,6 +789,7 @@ function calculateScoreboardRows(matchRows) {
     if (!statsByPlayer[player1]) {
       statsByPlayer[player1] = {
         playerName: player1,
+        eloRating: getPlayerElo(player1),
         games: 0,
         wins: 0,
         losses: 0,
@@ -411,6 +802,7 @@ function calculateScoreboardRows(matchRows) {
     if (!statsByPlayer[player2]) {
       statsByPlayer[player2] = {
         playerName: player2,
+        eloRating: getPlayerElo(player2),
         games: 0,
         wins: 0,
         losses: 0,
@@ -513,10 +905,12 @@ function renderScoreboard() {
     const row = document.createElement("tr");
     const roundedWinPercent = `${playerStats.winPercentage.toFixed(1)}%`;
     const position = index + 1;
+    const elo = playerStats.eloRating != null ? playerStats.eloRating : ELO_INITIAL;
 
     row.innerHTML = `
       <td>${position}</td>
       <td>${playerStats.playerName}</td>
+      <td>${elo}</td>
       <td>${playerStats.games}</td>
       <td>${playerStats.wins}</td>
       <td>${playerStats.losses}</td>
@@ -529,50 +923,13 @@ function renderScoreboard() {
   });
 }
 
-function showAddPlayerMessage(messageText, messageType) {
-  addPlayerMessage.textContent = messageText;
-  addPlayerMessage.classList.remove("success", "error");
-  addPlayerMessage.classList.add(messageType);
-}
-
-function setupAddPlayerForm() {
-  addPlayerForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const rawName = newPlayerNameInput.value.trim();
-    if (!rawName) {
-      showAddPlayerMessage("Please enter a player name.", "error");
-      return;
-    }
-
-    const alreadyExists = players.some(
-      (playerName) => playerName.toLowerCase() === rawName.toLowerCase()
-    );
-    if (alreadyExists) {
-      showAddPlayerMessage("That player already exists.", "error");
-      return;
-    }
-
-    const inserted = await insertPlayerToDatabase(rawName);
-    if (!inserted) return;
-
-    players = await fetchPlayersFromDatabase();
-    populatePlayerSelects();
-    renderScoreboard();
-
-    addPlayerForm.reset();
-    showAddPlayerMessage("Player added successfully.", "success");
-    updateClearMatchButtonState();
-  });
-}
-
 function setupMatchForm() {
   matchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     clearMessages();
 
-    const player1 = player1Select.value;
-    const player2 = player2Select.value;
+    const player1 = matchupPlayer1Select?.value ?? "";
+    const player2 = matchupPlayer2Select?.value ?? "";
     const score1 = Number(score1Input.value);
     const score2 = Number(score2Input.value);
 
@@ -596,23 +953,25 @@ function setupMatchForm() {
       return;
     }
 
-    const winnerCardElement = score1 > score2 ? player1Card : player2Card;
+    const winnerBlockElement = score1 > score2 ? matchupPlayer1Block : matchupPlayer2Block;
     const inserted = await insertMatchToDatabase({ player1, player2, score1, score2 });
     if (!inserted) return;
 
+    players = await fetchPlayersFromDatabase();
     matches = await fetchMatchesFromDatabase();
     matchForm.reset();
     showMatchSavedMessage();
     renderHistory();
     renderScoreboard();
-    triggerWinnerConfetti(winnerCardElement);
+    updateMatchupDisplay();
+    triggerWinnerConfetti(winnerBlockElement);
     updateClearMatchButtonState();
   });
 
   clearMatchButton.addEventListener("click", () => {
     if (isMatchFormEmpty()) return;
 
-    const isConfirmed = window.confirm("Clear selected players and entered scores?");
+    const isConfirmed = window.confirm("Clear entered scores?");
     if (!isConfirmed) return;
 
     matchForm.reset();
@@ -620,10 +979,10 @@ function setupMatchForm() {
     updateClearMatchButtonState();
   });
 
-  player1Select.addEventListener("change", updateClearMatchButtonState);
-  player2Select.addEventListener("change", updateClearMatchButtonState);
-  score1Input.addEventListener("input", updateClearMatchButtonState);
-  score2Input.addEventListener("input", updateClearMatchButtonState);
+  if (matchupPlayer1Select) matchupPlayer1Select.addEventListener("change", updateClearMatchButtonState);
+  if (matchupPlayer2Select) matchupPlayer2Select.addEventListener("change", updateClearMatchButtonState);
+  if (score1Input) score1Input.addEventListener("input", updateClearMatchButtonState);
+  if (score2Input) score2Input.addEventListener("input", updateClearMatchButtonState);
   updateClearMatchButtonState();
 }
 
@@ -647,8 +1006,8 @@ async function initializeAppData() {
 }
 
 setupTabs();
+setupMatchupTab();
+setupDashboardTab();
 setupMatchForm();
-setupAddPlayerForm();
 setupScoreboardSorting();
-setupHistoryActions();
 initializeAppData();

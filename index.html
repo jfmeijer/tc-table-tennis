@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TimeChimp Table Tennis Tracker</title>
+    <link rel="icon" href="favicon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -11,34 +12,52 @@
       <h1>TimeChimp Table Tennis Tracker</h1>
 
       <nav class="tabs" aria-label="Main pages">
-        <button class="tab-button active" data-tab="recording">Match Recording</button>
+        <button class="tab-button active" data-tab="matchup">Match</button>
+        <button class="tab-button" data-tab="dashboard">Dashboard</button>
         <button class="tab-button" data-tab="scoreboard">Scoreboard</button>
         <button class="tab-button" data-tab="history">Match History</button>
       </nav>
 
-      <section id="recording" class="tab-panel active">
-        <h2>Record a Match</h2>
-        <form id="match-form" class="match-form">
-          <div id="player1-card" class="player-card">
-            <label for="player1">Player 1</label>
-            <select id="player1">
-              <option value="">Choose player</option>
-            </select>
-
-            <label for="score1">Score</label>
-            <input id="score1" type="number" min="0" step="1" placeholder="0" required />
+      <section id="matchup" class="tab-panel active">
+        <h2>Match Preview</h2>
+        <div class="matchup-form">
+          <div class="matchup-select-row">
+            <div id="matchup-player1-block" class="matchup-player-block">
+              <label for="matchup-player1">Player 1</label>
+              <select id="matchup-player1">
+                <option value="">Choose player</option>
+              </select>
+              <p id="matchup-elo1" class="matchup-elo"></p>
+              <p id="matchup-chance1" class="matchup-chance"></p>
+              <p id="matchup-elo-gain1" class="matchup-elo-gain"></p>
+              <p id="matchup-player1-last5" class="matchup-last5"></p>
+            </div>
+            <div class="matchup-vs">VS</div>
+            <div id="matchup-player2-block" class="matchup-player-block">
+              <label for="matchup-player2">Player 2</label>
+              <select id="matchup-player2">
+                <option value="">Choose player</option>
+              </select>
+              <p id="matchup-elo2" class="matchup-elo"></p>
+              <p id="matchup-chance2" class="matchup-chance"></p>
+              <p id="matchup-elo-gain2" class="matchup-elo-gain"></p>
+              <p id="matchup-player2-last5" class="matchup-last5"></p>
+            </div>
           </div>
+        </div>
 
-          <div id="player2-card" class="player-card">
-            <label for="player2">Player 2</label>
-            <select id="player2">
-              <option value="">Choose player</option>
-            </select>
-
-            <label for="score2">Score</label>
-            <input id="score2" type="number" min="0" step="1" placeholder="0" required />
+        <h2 class="record-score-title">Record Score</h2>
+        <form id="match-form" class="record-score-form">
+          <div class="record-score-row">
+            <div class="record-score-cell">
+              <label id="score1-label" for="score1">Player 1 Score</label>
+              <input id="score1" type="number" min="0" step="1" placeholder="0" required />
+            </div>
+            <div class="record-score-cell">
+              <label id="score2-label" for="score2">Player 2 Score</label>
+              <input id="score2" type="number" min="0" step="1" placeholder="0" required />
+            </div>
           </div>
-
           <div class="actions">
             <button type="submit" class="primary-btn">Save Match</button>
             <button type="button" id="clear-match-btn" class="secondary-btn">Clear Match</button>
@@ -54,17 +73,49 @@
         </div>
       </section>
 
+      <section id="dashboard" class="tab-panel">
+        <h2>Dashboard</h2>
+        <div class="dashboard-player-row">
+          <label for="dashboard-player">Player</label>
+          <select id="dashboard-player">
+            <option value="">Choose player</option>
+          </select>
+        </div>
+        <div id="dashboard-stats" class="dashboard-stats">
+          <div class="dashboard-stat-card">
+            <h3 class="dashboard-stat-label">Win rate</h3>
+            <p id="dashboard-winrate" class="dashboard-stat-value">—</p>
+          </div>
+          <div class="dashboard-stat-card">
+            <h3 class="dashboard-stat-label">Avg points per game</h3>
+            <p id="dashboard-avg-points" class="dashboard-stat-value">—</p>
+          </div>
+          <div class="dashboard-stat-card">
+            <h3 class="dashboard-stat-label">Current win streak</h3>
+            <p id="dashboard-winstreak" class="dashboard-stat-value">—</p>
+          </div>
+          <div class="dashboard-stat-card">
+            <h3 class="dashboard-stat-label">Total matches</h3>
+            <p id="dashboard-total-matches" class="dashboard-stat-value">—</p>
+          </div>
+        </div>
+        <div class="dashboard-elo-section">
+          <h3 class="dashboard-section-title">Elo history</h3>
+          <div id="dashboard-elo-graph" class="dashboard-elo-graph" aria-hidden="false">
+            <svg id="dashboard-elo-svg" viewBox="0 0 400 200" preserveAspectRatio="none"></svg>
+          </div>
+          <p id="dashboard-elo-empty" class="panel-note dashboard-elo-empty">Select a player to see Elo history.</p>
+        </div>
+        <div class="dashboard-history-section">
+          <h3 class="dashboard-section-title">Match history</h3>
+          <div id="dashboard-match-history" class="dashboard-match-history">
+            <p class="panel-note">Select a player to see their matches.</p>
+          </div>
+        </div>
+      </section>
+
       <section id="scoreboard" class="tab-panel">
         <h2>Scoreboard</h2>
-        <form id="add-player-form" class="add-player-form">
-          <label for="new-player-name">Add player</label>
-          <div class="add-player-row">
-            <input id="new-player-name" type="text" placeholder="Enter player name" />
-            <button type="submit" class="primary-btn">Add Player</button>
-          </div>
-          <p id="add-player-message" class="add-player-message"></p>
-        </form>
-
         <div class="scoreboard-wrap">
           <table class="scoreboard-table">
             <thead>
@@ -74,6 +125,9 @@
                   <button type="button" class="sort-button" data-sort-key="playerName">
                     Player
                   </button>
+                </th>
+                <th>
+                  <button type="button" class="sort-button" data-sort-key="eloRating">Elo</button>
                 </th>
                 <th>
                   <button type="button" class="sort-button" data-sort-key="games">Games</button>
@@ -111,8 +165,8 @@
         <div class="history-header">
           <div class="history-header-cell">Players</div>
           <div class="history-header-cell">Score</div>
+          <div class="history-header-cell">Elo</div>
           <div class="history-header-cell">Date</div>
-          <div class="history-header-cell history-header-actions"></div>
         </div>
         <div id="history-list" class="history-list">
           <p class="panel-note">No saved matches yet.</p>
