@@ -412,12 +412,21 @@ function renderDashboardEloGraph(eloHistory) {
     return;
   }
 
+  // One point per day: keep the most recent Elo for each date (last match of that day)
+  const byDate = {};
+  last30DayHistory.forEach((p) => {
+    byDate[p.date] = p;
+  });
+  const onePerDay = Object.values(byDate).sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
   dashboardEloEmpty.style.display = "none";
   dashboardEloGraph.style.display = "block";
   const padding = { top: 20, right: 18, bottom: 46, left: 48 };
   const w = 640;
   const h = 320;
-  const elos = last30DayHistory.map((p) => p.elo);
+  const elos = onePerDay.map((p) => p.elo);
   const minElo = Math.min(...elos);
   const maxElo = Math.max(...elos);
   const range = maxElo - minElo || 1;
@@ -433,8 +442,11 @@ function renderDashboardEloGraph(eloHistory) {
     return padding.left + ((ts - startTs) / tsRange) * chartW;
   };
   const yScale = (elo) => padding.top + chartH - ((elo - eloMin) / (eloMax - eloMin)) * chartH;
+  const formatXAxisDate = (d) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
   let pathD = "";
-  last30DayHistory.forEach((p, i) => {
+  onePerDay.forEach((p, i) => {
     const x = xScale(p.date);
     const y = yScale(p.elo);
     pathD += (i === 0 ? "M" : "L") + `${x},${y}`;
@@ -445,8 +457,6 @@ function renderDashboardEloGraph(eloHistory) {
     d.setDate(startDate.getDate() + offsetDays);
     return d;
   });
-  const formatXAxisDate = (d) =>
-    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   let svg = `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
   svg += `<line x1="${padding.left}" y1="${h - padding.bottom}" x2="${w - padding.right}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
@@ -460,13 +470,14 @@ function renderDashboardEloGraph(eloHistory) {
     svg += `<line x1="${x}" y1="${h - padding.bottom}" x2="${x}" y2="${h - padding.bottom + 5}" stroke="#94a3b8" stroke-width="1"/>`;
     svg += `<text x="${x}" y="${h - 10}" text-anchor="middle" font-size="10" fill="#64748b">${formatXAxisDate(tickDate)}</text>`;
   });
-  if (last30DayHistory.length > 1) {
+  if (onePerDay.length > 1) {
     svg += `<path d="${pathD}" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
   }
-  last30DayHistory.forEach((p) => {
+  onePerDay.forEach((p) => {
     const x = xScale(p.date);
     const y = yScale(p.elo);
-    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5"/>`;
+    const label = formatXAxisDate(toDate(p.date));
+    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5" title="${label}: Elo ${p.elo}"/>`;
   });
   dashboardEloSvg.innerHTML = svg;
 }
