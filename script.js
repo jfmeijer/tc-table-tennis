@@ -53,6 +53,7 @@ const ELO_INITIAL = 1000;
 
 let players = [];
 let matches = [];
+let isSavingMatch = false;
 let currentScoreboardSort = {
   key: "winPercentage",
   direction: "desc",
@@ -337,33 +338,30 @@ function computePlayerDashboardStats(playerName) {
 
 function computeEloHistory(playerName) {
   const name = playerName.trim().toLowerCase();
-  const sorted = matches.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-  const ratings = {};
-  const points = [];
-  let firstDateForPlayer = null;
-  for (const m of sorted) {
-    const r1 = ratings[m.player1.toLowerCase()] ?? ELO_INITIAL;
-    const r2 = ratings[m.player2.toLowerCase()] ?? ELO_INITIAL;
-    const player1Won = m.score1 > m.score2;
-    const { new1, new2 } = updateEloAfterMatch(r1, r2, player1Won);
-    ratings[m.player1.toLowerCase()] = new1;
-    ratings[m.player2.toLowerCase()] = new2;
-    const p1Name = m.player1.toLowerCase();
-    const p2Name = m.player2.toLowerCase();
-    if (p1Name === name) {
-      if (firstDateForPlayer === null) {
-        firstDateForPlayer = m.date;
-        points.push({ date: m.date, elo: ELO_INITIAL });
-      }
-      points.push({ date: m.date, elo: new1 });
-    } else if (p2Name === name) {
-      if (firstDateForPlayer === null) {
-        firstDateForPlayer = m.date;
-        points.push({ date: m.date, elo: ELO_INITIAL });
-      }
-      points.push({ date: m.date, elo: new2 });
-    }
-  }
+  const matchesWithElo = matches
+    .filter((m) => {
+      const p1 = m.player1.toLowerCase() === name;
+      const p2 = m.player2.toLowerCase() === name;
+      if (!p1 && !p2) return false;
+      return p1 ? m.eloChange1 != null : m.eloChange2 != null;
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (matchesWithElo.length === 0) return [];
+
+  const deltas = matchesWithElo.map((m) =>
+    m.player1.toLowerCase() === name ? m.eloChange1 : m.eloChange2
+  );
+  const totalKnownDelta = deltas.reduce((sum, delta) => sum + delta, 0);
+
+  let runningElo = getPlayerElo(playerName) - totalKnownDelta;
+  const points = [{ date: matchesWithElo[0].date, elo: runningElo }];
+
+  matchesWithElo.forEach((m, idx) => {
+    runningElo += deltas[idx];
+    points.push({ date: m.date, elo: runningElo });
+  });
+
   return points;
 }
 
@@ -390,12 +388,36 @@ function renderDashboardEloGraph(eloHistory) {
     dashboardEloEmpty.textContent = "No match history — Elo will appear after matches.";
     return;
   }
+
+  const toDate = (value) => {
+    const date = new Date(`${value}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? new Date(value) : date;
+  };
+
+  const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 29);
+  startDate.setHours(0, 0, 0, 0);
+
+  const last30DayHistory = eloHistory.filter((p) => {
+    const d = toDate(p.date);
+    return d >= startDate && d <= endDate;
+  });
+
+  if (last30DayHistory.length === 0) {
+    dashboardEloGraph.style.display = "none";
+    dashboardEloEmpty.style.display = "block";
+    dashboardEloEmpty.textContent = "No Elo-tracked matches in the last 30 days.";
+    return;
+  }
+
   dashboardEloEmpty.style.display = "none";
   dashboardEloGraph.style.display = "block";
-  const padding = { top: 20, right: 20, bottom: 30, left: 40 };
-  const w = 400;
-  const h = 200;
-  const elos = eloHistory.map((p) => p.elo);
+  const padding = { top: 20, right: 18, bottom: 46, left: 48 };
+  const w = 640;
+  const h = 320;
+  const elos = last30DayHistory.map((p) => p.elo);
   const minElo = Math.min(...elos);
   const maxElo = Math.max(...elos);
   const range = maxElo - minElo || 1;
@@ -403,26 +425,48 @@ function renderDashboardEloGraph(eloHistory) {
   const eloMax = Math.ceil(maxElo + range * 0.1);
   const chartW = w - padding.left - padding.right;
   const chartH = h - padding.top - padding.bottom;
-  const xScale = (i) => padding.left + (i / (eloHistory.length - 1 || 1)) * chartW;
+  const startTs = startDate.getTime();
+  const endTs = endDate.getTime();
+  const tsRange = endTs - startTs || 1;
+  const xScale = (dateValue) => {
+    const ts = toDate(dateValue).getTime();
+    return padding.left + ((ts - startTs) / tsRange) * chartW;
+  };
   const yScale = (elo) => padding.top + chartH - ((elo - eloMin) / (eloMax - eloMin)) * chartH;
   let pathD = "";
-  eloHistory.forEach((p, i) => {
-    const x = xScale(i);
+  last30DayHistory.forEach((p, i) => {
+    const x = xScale(p.date);
     const y = yScale(p.elo);
     pathD += (i === 0 ? "M" : "L") + `${x},${y}`;
   });
   const yTicks = [eloMin, Math.round((eloMin + eloMax) / 2), eloMax];
+  const xTicks = [0, 10, 20, 29].map((offsetDays) => {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + offsetDays);
+    return d;
+  });
+  const formatXAxisDate = (d) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
   let svg = `<line x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
   svg += `<line x1="${padding.left}" y1="${h - padding.bottom}" x2="${w - padding.right}" y2="${h - padding.bottom}" stroke="#e2e8f0" stroke-width="1"/>`;
   yTicks.forEach((t) => {
     const y = yScale(t);
+    svg += `<line x1="${padding.left}" y1="${y}" x2="${w - padding.right}" y2="${y}" stroke="#f1f5f9" stroke-width="1"/>`;
     svg += `<text x="${padding.left - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#64748b">${t}</text>`;
   });
-  svg += `<path d="${pathD}" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-  eloHistory.forEach((p, i) => {
-    const x = xScale(i);
+  xTicks.forEach((tickDate) => {
+    const x = xScale(tickDate.toISOString().slice(0, 10));
+    svg += `<line x1="${x}" y1="${h - padding.bottom}" x2="${x}" y2="${h - padding.bottom + 5}" stroke="#94a3b8" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${h - 10}" text-anchor="middle" font-size="10" fill="#64748b">${formatXAxisDate(tickDate)}</text>`;
+  });
+  if (last30DayHistory.length > 1) {
+    svg += `<path d="${pathD}" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  last30DayHistory.forEach((p) => {
+    const x = xScale(p.date);
     const y = yScale(p.elo);
-    svg += `<circle cx="${x}" cy="${y}" r="3" fill="#4F46E5"/>`;
+    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5"/>`;
   });
   dashboardEloSvg.innerHTML = svg;
 }
@@ -757,12 +801,44 @@ function renderHistory() {
       date.className = "history-cell history-date";
       date.textContent = formatMatchDate(match.date);
 
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "history-delete-btn";
+      deleteButton.dataset.matchId = String(match.id);
+      deleteButton.title = "Delete match";
+      deleteButton.setAttribute("aria-label", "Delete match");
+      deleteButton.innerHTML = '<img src="assets/trash-2.svg" alt="" class="history-delete-icon" />';
+
       item.appendChild(matchup);
       item.appendChild(score);
       item.appendChild(eloCell);
       item.appendChild(date);
+      item.appendChild(deleteButton);
       historyList.appendChild(item);
     });
+}
+
+function setupHistoryActions() {
+  if (!historyList) return;
+  historyList.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest(".history-delete-btn");
+    if (!deleteButton) return;
+
+    const matchId = Number(deleteButton.dataset.matchId);
+    if (Number.isNaN(matchId)) return;
+
+    const isConfirmed = window.confirm("Are you sure you want to delete this match?");
+    if (!isConfirmed) return;
+
+    const deleted = await deleteMatchFromDatabase(matchId);
+    if (!deleted) return;
+
+    matches = await fetchMatchesFromDatabase();
+    renderHistory();
+    renderScoreboard();
+    updateDashboard();
+    updateMatchupDisplay();
+  });
 }
 
 function calculateScoreboardRows(matchRows) {
@@ -924,8 +1000,11 @@ function renderScoreboard() {
 }
 
 function setupMatchForm() {
+  const saveMatchButton = matchForm?.querySelector('button[type="submit"]');
+
   matchForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (isSavingMatch) return;
     clearMessages();
 
     const player1 = matchupPlayer1Select?.value ?? "";
@@ -954,18 +1033,27 @@ function setupMatchForm() {
     }
 
     const winnerBlockElement = score1 > score2 ? matchupPlayer1Block : matchupPlayer2Block;
-    const inserted = await insertMatchToDatabase({ player1, player2, score1, score2 });
-    if (!inserted) return;
+    isSavingMatch = true;
+    if (saveMatchButton) saveMatchButton.disabled = true;
+    clearMatchButton.disabled = true;
+    try {
+      const inserted = await insertMatchToDatabase({ player1, player2, score1, score2 });
+      if (!inserted) return;
 
-    players = await fetchPlayersFromDatabase();
-    matches = await fetchMatchesFromDatabase();
-    matchForm.reset();
-    showMatchSavedMessage();
-    renderHistory();
-    renderScoreboard();
-    updateMatchupDisplay();
-    triggerWinnerConfetti(winnerBlockElement);
-    updateClearMatchButtonState();
+      players = await fetchPlayersFromDatabase();
+      matches = await fetchMatchesFromDatabase();
+      matchForm.reset();
+      showMatchSavedMessage();
+      renderHistory();
+      renderScoreboard();
+      updateMatchupDisplay();
+      triggerWinnerConfetti(winnerBlockElement);
+      updateClearMatchButtonState();
+    } finally {
+      isSavingMatch = false;
+      if (saveMatchButton) saveMatchButton.disabled = false;
+      updateClearMatchButtonState();
+    }
   });
 
   clearMatchButton.addEventListener("click", () => {
@@ -1010,4 +1098,5 @@ setupMatchupTab();
 setupDashboardTab();
 setupMatchForm();
 setupScoreboardSorting();
+setupHistoryActions();
 initializeAppData();
