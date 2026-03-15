@@ -477,7 +477,8 @@ function renderDashboardEloGraph(eloHistory) {
     const x = xScale(p.date);
     const y = yScale(p.elo);
     const label = formatXAxisDate(toDate(p.date));
-    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5" title="${label}: Elo ${p.elo}"/>`;
+    const tooltip = `${label}: Elo ${p.elo}`;
+    svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5"><title>${tooltip}</title></circle>`;
   });
   dashboardEloSvg.innerHTML = svg;
 }
