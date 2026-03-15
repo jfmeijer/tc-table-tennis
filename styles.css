@@ -387,7 +387,7 @@ select:focus,
 
 .history-header {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(100px, 0.6fr) minmax(110px, 0.8fr) 40px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(100px, 0.6fr) minmax(110px, 0.8fr);
   align-items: center;
   border: 1px solid #e1e7f2;
   border-radius: 12px;
@@ -407,10 +407,6 @@ select:focus,
   border-right: 0;
 }
 
-.history-header-actions {
-  padding: 0;
-}
-
 .history-list {
   border: 1px solid #e1e7f2;
   border-radius: 12px;
@@ -423,7 +419,7 @@ select:focus,
   padding: 0;
   border-bottom: 1px solid #e8edf6;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(100px, 0.6fr) minmax(110px, 0.8fr) 40px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(100px, 0.6fr) minmax(110px, 0.8fr);
   align-items: center;
   min-height: 44px;
 }
@@ -451,31 +447,6 @@ select:focus,
 
 .history-date {
   color: #64748b;
-}
-
-.history-delete-btn {
-  border: 0;
-  background: transparent;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.history-delete-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-}
-
-.history-item:hover .history-delete-btn,
-.history-delete-btn:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .history-item:last-child {

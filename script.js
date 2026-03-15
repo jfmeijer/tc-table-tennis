@@ -801,44 +801,12 @@ function renderHistory() {
       date.className = "history-cell history-date";
       date.textContent = formatMatchDate(match.date);
 
-      const deleteButton = document.createElement("button");
-      deleteButton.type = "button";
-      deleteButton.className = "history-delete-btn";
-      deleteButton.dataset.matchId = String(match.id);
-      deleteButton.title = "Delete match";
-      deleteButton.setAttribute("aria-label", "Delete match");
-      deleteButton.innerHTML = '<img src="assets/trash-2.svg" alt="" class="history-delete-icon" />';
-
       item.appendChild(matchup);
       item.appendChild(score);
       item.appendChild(eloCell);
       item.appendChild(date);
-      item.appendChild(deleteButton);
       historyList.appendChild(item);
     });
-}
-
-function setupHistoryActions() {
-  if (!historyList) return;
-  historyList.addEventListener("click", async (event) => {
-    const deleteButton = event.target.closest(".history-delete-btn");
-    if (!deleteButton) return;
-
-    const matchId = Number(deleteButton.dataset.matchId);
-    if (Number.isNaN(matchId)) return;
-
-    const isConfirmed = window.confirm("Are you sure you want to delete this match?");
-    if (!isConfirmed) return;
-
-    const deleted = await deleteMatchFromDatabase(matchId);
-    if (!deleted) return;
-
-    matches = await fetchMatchesFromDatabase();
-    renderHistory();
-    renderScoreboard();
-    updateDashboard();
-    updateMatchupDisplay();
-  });
 }
 
 function calculateScoreboardRows(matchRows) {
@@ -1098,5 +1066,4 @@ setupMatchupTab();
 setupDashboardTab();
 setupMatchForm();
 setupScoreboardSorting();
-setupHistoryActions();
 initializeAppData();
