@@ -307,6 +307,11 @@ select:focus,
   color: #4a5568;
 }
 
+.add-player-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
 .add-player-form {
   margin-bottom: 1rem;
 }
@@ -542,9 +547,31 @@ select:focus,
   padding: 0.75rem;
   margin: 0;
 }
+.dashboard-history-head {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dashboard-history-head-cell:nth-child(3),
+.dashboard-history-head-cell:nth-child(4),
+.dashboard-history-head-cell:nth-child(5) {
+  text-align: right;
+}
+.dashboard-history-head-cell:nth-child(2) {
+  text-align: left;
+}
 .dashboard-history-row {
   display: grid;
-  grid-template-columns: 32px 1fr auto auto;
+  grid-template-columns: 32px 1fr auto auto auto;
   gap: 0.5rem;
   align-items: center;
   padding: 0.5rem 0.75rem;
@@ -570,6 +597,19 @@ select:focus,
 .dashboard-history-score {
   font-weight: 700;
   color: #475569;
+}
+.dashboard-history-elo {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: right;
+  min-width: 2.5rem;
+}
+.dashboard-history-elo.positive {
+  color: #059669;
+}
+.dashboard-history-elo.negative {
+  color: #dc2626;
 }
 .dashboard-history-date {
   font-size: 0.9rem;

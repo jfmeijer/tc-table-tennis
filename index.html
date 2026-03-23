@@ -117,6 +117,15 @@
 
       <section id="scoreboard" class="tab-panel">
         <h2>Scoreboard</h2>
+        <form id="add-player-form" class="add-player-form">
+          <label for="new-player-name">Add player</label>
+          <p class="panel-note add-player-hint">New players start at Elo 1000.</p>
+          <div class="add-player-row">
+            <input id="new-player-name" type="text" placeholder="Enter player name" />
+            <button type="submit" class="primary-btn">Add Player</button>
+          </div>
+          <p id="add-player-message" class="add-player-message"></p>
+        </form>
         <div class="scoreboard-wrap">
           <table class="scoreboard-table">
             <thead>

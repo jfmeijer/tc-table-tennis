@@ -38,6 +38,9 @@ const dashboardEloGraph = document.getElementById("dashboard-elo-graph");
 const dashboardEloSvg = document.getElementById("dashboard-elo-svg");
 const dashboardEloEmpty = document.getElementById("dashboard-elo-empty");
 const dashboardMatchHistory = document.getElementById("dashboard-match-history");
+const addPlayerForm = document.getElementById("add-player-form");
+const newPlayerNameInput = document.getElementById("new-player-name");
+const addPlayerMessage = document.getElementById("add-player-message");
 
 const supabaseConfig = window.APP_CONFIG || {};
 const supabaseClient =
@@ -494,18 +497,36 @@ function renderDashboardMatchHistory(playerName) {
     return;
   }
   dashboardMatchHistory.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "dashboard-history-head";
+  head.innerHTML = `
+    <span class="dashboard-history-head-cell"></span>
+    <span class="dashboard-history-head-cell">Opponent</span>
+    <span class="dashboard-history-head-cell">Score</span>
+    <span class="dashboard-history-head-cell">Elo Δ</span>
+    <span class="dashboard-history-head-cell">Date</span>
+  `;
+  dashboardMatchHistory.appendChild(head);
   playerMatches.forEach((m) => {
     const isP1 = m.player1.toLowerCase() === name;
     const opponent = isP1 ? m.player2 : m.player1;
     const myScore = isP1 ? m.score1 : m.score2;
     const oppScore = isP1 ? m.score2 : m.score1;
     const won = myScore > oppScore;
+    const delta = isP1 ? m.eloChange1 : m.eloChange2;
+    let eloText = "—";
+    let eloClass = "dashboard-history-elo";
+    if (delta != null) {
+      eloText = delta >= 0 ? `+${delta}` : String(delta);
+      eloClass += delta > 0 ? " positive" : delta < 0 ? " negative" : "";
+    }
     const row = document.createElement("div");
     row.className = "dashboard-history-row";
     row.innerHTML = `
       <span class="dashboard-history-result ${won ? "win" : "loss"}">${won ? "W" : "L"}</span>
       <span class="dashboard-history-opponent">vs ${opponent}</span>
       <span class="dashboard-history-score">${myScore}-${oppScore}</span>
+      <span class="${eloClass}">${eloText}</span>
       <span class="dashboard-history-date">${formatMatchDate(m.date)}</span>
     `;
     dashboardMatchHistory.appendChild(row);
@@ -553,6 +574,45 @@ function populateDashboardSelect() {
 function setupDashboardTab() {
   if (!dashboardPlayerSelect) return;
   dashboardPlayerSelect.addEventListener("change", updateDashboard);
+}
+
+function showAddPlayerMessage(messageText, messageType) {
+  if (!addPlayerMessage) return;
+  addPlayerMessage.textContent = messageText;
+  addPlayerMessage.classList.remove("success", "error");
+  addPlayerMessage.classList.add(messageType);
+}
+
+function setupAddPlayerForm() {
+  if (!addPlayerForm || !newPlayerNameInput) return;
+  addPlayerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const rawName = newPlayerNameInput.value.trim();
+    if (!rawName) {
+      showAddPlayerMessage("Please enter a player name.", "error");
+      return;
+    }
+
+    const names = players.map((p) => (typeof p === "string" ? p : p.name));
+    const alreadyExists = names.some((n) => n.toLowerCase() === rawName.toLowerCase());
+    if (alreadyExists) {
+      showAddPlayerMessage("That player already exists.", "error");
+      return;
+    }
+
+    const inserted = await insertPlayerToDatabase(rawName);
+    if (!inserted) return;
+
+    players = await fetchPlayersFromDatabase();
+    populatePlayerSelects();
+    renderScoreboard();
+
+    addPlayerForm.reset();
+    showAddPlayerMessage("Player added (Elo 1000).", "success");
+    updateClearMatchButtonState();
+    updateDashboard();
+  });
 }
 
 async function fetchPlayersFromDatabase() {
@@ -1077,5 +1137,6 @@ setupTabs();
 setupMatchupTab();
 setupDashboardTab();
 setupMatchForm();
+setupAddPlayerForm();
 setupScoreboardSorting();
 initializeAppData();
