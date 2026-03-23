@@ -37,6 +37,7 @@ const dashboardTotalMatches = document.getElementById("dashboard-total-matches")
 const dashboardEloGraph = document.getElementById("dashboard-elo-graph");
 const dashboardEloSvg = document.getElementById("dashboard-elo-svg");
 const dashboardEloEmpty = document.getElementById("dashboard-elo-empty");
+const dashboardEloPeriod = document.getElementById("dashboard-elo-period");
 const dashboardMatchHistory = document.getElementById("dashboard-match-history");
 const addPlayerForm = document.getElementById("add-player-form");
 const newPlayerNameInput = document.getElementById("new-player-name");
@@ -383,6 +384,21 @@ function renderDashboardStats(stats) {
   dashboardTotalMatches.textContent = String(stats.totalMatches);
 }
 
+function getDashboardEloWindowDates() {
+  const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 29);
+  startDate.setHours(0, 0, 0, 0);
+  return { startDate, endDate };
+}
+
+function formatDashboardEloPeriodRangeText() {
+  const { startDate, endDate } = getDashboardEloWindowDates();
+  const opts = { month: "short", day: "numeric", year: "numeric" };
+  return `${startDate.toLocaleDateString(undefined, opts)} – ${endDate.toLocaleDateString(undefined, opts)}`;
+}
+
 function renderDashboardEloGraph(eloHistory) {
   if (!dashboardEloSvg || !dashboardEloGraph || !dashboardEloEmpty) return;
   if (!eloHistory || eloHistory.length === 0) {
@@ -397,11 +413,7 @@ function renderDashboardEloGraph(eloHistory) {
     return Number.isNaN(date.getTime()) ? new Date(value) : date;
   };
 
-  const endDate = new Date();
-  endDate.setHours(23, 59, 59, 999);
-  const startDate = new Date(endDate);
-  startDate.setDate(startDate.getDate() - 29);
-  startDate.setHours(0, 0, 0, 0);
+  const { startDate, endDate } = getDashboardEloWindowDates();
 
   const last30DayHistory = eloHistory.filter((p) => {
     const d = toDate(p.date);
@@ -496,17 +508,21 @@ function renderDashboardMatchHistory(playerName) {
     dashboardMatchHistory.innerHTML = '<p class="panel-note">No matches yet.</p>';
     return;
   }
-  dashboardMatchHistory.innerHTML = "";
-  const head = document.createElement("div");
-  head.className = "dashboard-history-head";
-  head.innerHTML = `
-    <span class="dashboard-history-head-cell"></span>
-    <span class="dashboard-history-head-cell">Opponent</span>
-    <span class="dashboard-history-head-cell">Score</span>
-    <span class="dashboard-history-head-cell">Elo Δ</span>
-    <span class="dashboard-history-head-cell">Date</span>
+  const table = document.createElement("table");
+  table.className = "dashboard-match-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--result">W/L</th>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--opponent">Opponent</th>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--num">Score</th>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--num">Elo Δ</th>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--date">Date</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
   `;
-  dashboardMatchHistory.appendChild(head);
+  const tbody = table.querySelector("tbody");
   playerMatches.forEach((m) => {
     const isP1 = m.player1.toLowerCase() === name;
     const opponent = isP1 ? m.player2 : m.player1;
@@ -515,26 +531,35 @@ function renderDashboardMatchHistory(playerName) {
     const won = myScore > oppScore;
     const delta = isP1 ? m.eloChange1 : m.eloChange2;
     let eloText = "—";
-    let eloClass = "dashboard-history-elo";
+    let eloClass = "dashboard-match-elo";
     if (delta != null) {
       eloText = delta >= 0 ? `+${delta}` : String(delta);
       eloClass += delta > 0 ? " positive" : delta < 0 ? " negative" : "";
     }
-    const row = document.createElement("div");
-    row.className = "dashboard-history-row";
-    row.innerHTML = `
-      <span class="dashboard-history-result ${won ? "win" : "loss"}">${won ? "W" : "L"}</span>
-      <span class="dashboard-history-opponent">vs ${opponent}</span>
-      <span class="dashboard-history-score">${myScore}-${oppScore}</span>
-      <span class="${eloClass}">${eloText}</span>
-      <span class="dashboard-history-date">${formatMatchDate(m.date)}</span>
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="dashboard-match-td dashboard-match-td--result">
+        <span class="dashboard-history-result ${won ? "win" : "loss"}">${won ? "W" : "L"}</span>
+      </td>
+      <td class="dashboard-match-td dashboard-match-td--opponent">${opponent}</td>
+      <td class="dashboard-match-td dashboard-match-td--num">${myScore}-${oppScore}</td>
+      <td class="dashboard-match-td dashboard-match-td--num ${eloClass}">${eloText}</td>
+      <td class="dashboard-match-td dashboard-match-td--date">${formatMatchDate(m.date)}</td>
     `;
-    dashboardMatchHistory.appendChild(row);
+    tbody.appendChild(tr);
   });
+  dashboardMatchHistory.innerHTML = "";
+  dashboardMatchHistory.appendChild(table);
 }
 
 function updateDashboard() {
   const playerName = dashboardPlayerSelect?.value?.trim() || "";
+  if (dashboardEloPeriod) {
+    const range = formatDashboardEloPeriodRangeText();
+    dashboardEloPeriod.textContent = playerName
+      ? `Last 30 days · ${range}`
+      : `Elo graph shows the last 30 days (${range}). Select a player.`;
+  }
   if (!playerName) {
     if (dashboardWinrate) dashboardWinrate.textContent = "—";
     if (dashboardAvgPoints) dashboardAvgPoints.textContent = "—";

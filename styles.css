@@ -515,6 +515,13 @@ select:focus,
   font-weight: 700;
   color: #334155;
 }
+
+.dashboard-elo-period {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+}
 .dashboard-elo-graph {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -547,43 +554,86 @@ select:focus,
   padding: 0.75rem;
   margin: 0;
 }
-.dashboard-history-head {
-  display: grid;
-  grid-template-columns: 32px 1fr auto auto auto;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #64748b;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-}
-.dashboard-history-head-cell:nth-child(3),
-.dashboard-history-head-cell:nth-child(4),
-.dashboard-history-head-cell:nth-child(5) {
-  text-align: right;
-}
-.dashboard-history-head-cell:nth-child(2) {
-  text-align: left;
-}
-.dashboard-history-row {
-  display: grid;
-  grid-template-columns: 32px 1fr auto auto auto;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #e8edf6;
+
+.dashboard-match-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.95rem;
 }
-.dashboard-history-row:last-child {
+
+.dashboard-match-table thead th {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.dashboard-match-th--result {
+  width: 3rem;
+  text-align: center !important;
+}
+
+.dashboard-match-th--opponent {
+  width: auto;
+}
+
+.dashboard-match-th--num {
+  width: 4.75rem;
+  text-align: right !important;
+}
+
+.dashboard-match-th--date {
+  width: 6.5rem;
+  text-align: right !important;
+}
+
+.dashboard-match-table tbody td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid #e8edf6;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.dashboard-match-table tbody tr:last-child td {
   border-bottom: 0;
 }
+
+.dashboard-match-td--result {
+  text-align: center;
+}
+
+.dashboard-match-td--opponent {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-match-td--num {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #475569;
+}
+
+.dashboard-match-td--date {
+  text-align: right;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+}
+
 .dashboard-history-result {
   font-weight: 700;
-  text-align: center;
+  display: inline-block;
+  min-width: 1.25rem;
 }
 .dashboard-history-result.win {
   color: #059669;
@@ -591,29 +641,16 @@ select:focus,
 .dashboard-history-result.loss {
   color: #dc2626;
 }
-.dashboard-history-opponent {
-  color: #334155;
-}
-.dashboard-history-score {
-  font-weight: 700;
-  color: #475569;
-}
-.dashboard-history-elo {
-  font-size: 0.9rem;
+
+.dashboard-match-elo {
   font-weight: 600;
   color: #64748b;
-  text-align: right;
-  min-width: 2.5rem;
 }
-.dashboard-history-elo.positive {
+.dashboard-match-elo.positive {
   color: #059669;
 }
-.dashboard-history-elo.negative {
+.dashboard-match-elo.negative {
   color: #dc2626;
-}
-.dashboard-history-date {
-  font-size: 0.9rem;
-  color: #64748b;
 }
 
 @media (max-width: 700px) {
