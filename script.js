@@ -199,8 +199,8 @@ function updateMatchupDisplay() {
     return;
   }
   if (name1 === name2) {
-    matchupElo1.textContent = `Ego (rating): ${getPlayerElo(name1)}`;
-    matchupElo2.textContent = `Ego (rating): ${getPlayerElo(name2)}`;
+    matchupElo1.textContent = `Ego: ${getPlayerElo(name1)}`;
+    matchupElo2.textContent = `Ego: ${getPlayerElo(name2)}`;
     matchupChance1.textContent = "Same player — choose two different players.";
     matchupChance2.textContent = "";
     if (matchupEloGain1) matchupEloGain1.textContent = "";
@@ -219,8 +219,8 @@ function updateMatchupDisplay() {
   const gain1IfWin = if1Wins.new1 - elo1;
   const gain2IfWin = if2Wins.new2 - elo2;
 
-  matchupElo1.textContent = `Ego (rating): ${elo1}`;
-  matchupElo2.textContent = `Ego (rating): ${elo2}`;
+  matchupElo1.textContent = `Ego: ${elo1}`;
+  matchupElo2.textContent = `Ego: ${elo2}`;
   matchupChance1.textContent = `${(chance1 * 100).toFixed(1)}% chance to win`;
   matchupChance2.textContent = `${(chance2 * 100).toFixed(1)}% chance to win`;
   if (matchupEloGain1) matchupEloGain1.textContent = `+${gain1IfWin} if you win`;
@@ -404,7 +404,7 @@ function renderDashboardEloGraph(eloHistory) {
   if (!eloHistory || eloHistory.length === 0) {
     dashboardEloGraph.style.display = "none";
     dashboardEloEmpty.style.display = "block";
-    dashboardEloEmpty.textContent = "No match history — Ego (rating) will appear after matches.";
+    dashboardEloEmpty.textContent = "No match history — Ego will appear after matches.";
     return;
   }
 
@@ -423,7 +423,7 @@ function renderDashboardEloGraph(eloHistory) {
   if (last30DayHistory.length === 0) {
     dashboardEloGraph.style.display = "none";
     dashboardEloEmpty.style.display = "block";
-    dashboardEloEmpty.textContent = "No Ego (rating) matches in the last 30 days.";
+    dashboardEloEmpty.textContent = "No Ego matches in the last 30 days.";
     return;
   }
 
@@ -492,7 +492,7 @@ function renderDashboardEloGraph(eloHistory) {
     const x = xScale(p.date);
     const y = yScale(p.elo);
     const label = formatXAxisDate(toDate(p.date));
-    const tooltip = `${label}: Ego (rating) ${p.elo}`;
+    const tooltip = `${label}: Ego ${p.elo}`;
     svg += `<circle cx="${x}" cy="${y}" r="3.5" fill="#4F46E5"><title>${tooltip}</title></circle>`;
   });
   dashboardEloSvg.innerHTML = svg;
@@ -516,7 +516,7 @@ function renderDashboardMatchHistory(playerName) {
         <th scope="col" class="dashboard-match-th dashboard-match-th--result">W/L</th>
         <th scope="col" class="dashboard-match-th dashboard-match-th--opponent">Opponent</th>
         <th scope="col" class="dashboard-match-th dashboard-match-th--num">Score</th>
-        <th scope="col" class="dashboard-match-th dashboard-match-th--num">Ego (rating) Δ</th>
+        <th scope="col" class="dashboard-match-th dashboard-match-th--num">Ego Δ</th>
         <th scope="col" class="dashboard-match-th dashboard-match-th--date">Date</th>
       </tr>
     </thead>
@@ -558,7 +558,7 @@ function updateDashboard() {
     const range = formatDashboardEloPeriodRangeText();
     dashboardEloPeriod.textContent = playerName
       ? `Last 30 days · ${range}`
-      : `Ego (rating) graph shows the last 30 days (${range}). Select a player.`;
+      : `Ego graph shows the last 30 days (${range}). Select a player.`;
   }
   if (!playerName) {
     if (dashboardWinrate) dashboardWinrate.textContent = "—";
@@ -567,7 +567,7 @@ function updateDashboard() {
     if (dashboardTotalMatches) dashboardTotalMatches.textContent = "—";
     if (dashboardEloEmpty) {
       dashboardEloEmpty.style.display = "block";
-      dashboardEloEmpty.textContent = "Select a player to see Ego (rating) history.";
+      dashboardEloEmpty.textContent = "Select a player to see Ego history.";
     }
     if (dashboardEloGraph) dashboardEloGraph.style.display = "none";
     if (dashboardMatchHistory) dashboardMatchHistory.innerHTML = '<p class="panel-note">Select a player to see their matches.</p>';
@@ -634,7 +634,7 @@ function setupAddPlayerForm() {
     renderScoreboard();
 
     addPlayerForm.reset();
-    showAddPlayerMessage("Player added (Ego (rating) 1000).", "success");
+    showAddPlayerMessage("Player added (Ego 1000).", "success");
     updateClearMatchButtonState();
     updateDashboard();
   });
@@ -718,7 +718,7 @@ async function updatePlayerEloInDatabase(playerName, newElo) {
     .update({ elo_rating: newElo })
     .eq("name", playerName);
   if (error) {
-    showDatabaseError("updating Ego (rating)", error);
+    showDatabaseError("updating Ego", error);
     return false;
   }
   return true;
