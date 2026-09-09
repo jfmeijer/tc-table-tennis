@@ -101,12 +101,12 @@
           </div>
         </div>
         <div class="dashboard-elo-section">
-          <h3 class="dashboard-section-title">Elo history</h3>
+          <h3 class="dashboard-section-title">Ego (rating) history</h3>
           <p id="dashboard-elo-period" class="dashboard-elo-period" aria-live="polite"></p>
           <div id="dashboard-elo-graph" class="dashboard-elo-graph" aria-hidden="false">
             <svg id="dashboard-elo-svg" viewBox="0 0 640 320" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
-          <p id="dashboard-elo-empty" class="panel-note dashboard-elo-empty">Select a player to see Elo history.</p>
+          <p id="dashboard-elo-empty" class="panel-note dashboard-elo-empty">Select a player to see Ego (rating) history.</p>
         </div>
         <div class="dashboard-history-section">
           <h3 class="dashboard-section-title">Match history</h3>
@@ -120,7 +120,7 @@
         <h2>Scoreboard</h2>
         <form id="add-player-form" class="add-player-form">
           <label for="new-player-name">Add player</label>
-          <p class="panel-note add-player-hint">New players start at Elo 1000.</p>
+          <p class="panel-note add-player-hint">New players start at Ego (rating) 1000.</p>
           <div class="add-player-row">
             <input id="new-player-name" type="text" placeholder="Enter player name" />
             <button type="submit" class="primary-btn">Add Player</button>
@@ -138,7 +138,7 @@
                   </button>
                 </th>
                 <th>
-                  <button type="button" class="sort-button" data-sort-key="eloRating">Elo</button>
+                  <button type="button" class="sort-button" data-sort-key="eloRating">Ego (rating)</button>
                 </th>
                 <th>
                   <button type="button" class="sort-button" data-sort-key="games">Games</button>
@@ -176,7 +176,7 @@
         <div class="history-header">
           <div class="history-header-cell">Players</div>
           <div class="history-header-cell">Score</div>
-          <div class="history-header-cell">Elo</div>
+          <div class="history-header-cell">Ego (rating)</div>
           <div class="history-header-cell">Date</div>
         </div>
         <div id="history-list" class="history-list">
