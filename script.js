@@ -45,6 +45,12 @@ const dashboardEloSvg = document.getElementById("dashboard-elo-svg");
 const dashboardEloEmpty = document.getElementById("dashboard-elo-empty");
 const dashboardEloPeriod = document.getElementById("dashboard-elo-period");
 const dashboardMatchHistory = document.getElementById("dashboard-match-history");
+const dashboardPagination = document.getElementById("dashboard-pagination");
+const dashboardPrevButton = document.getElementById("dashboard-prev");
+const dashboardNextButton = document.getElementById("dashboard-next");
+const dashboardPageLabel = document.getElementById("dashboard-page-label");
+const DASHBOARD_PAGE_SIZE = 25;
+let dashboardPage = 1;
 const addPlayerForm = document.getElementById("add-player-form");
 const newPlayerNameInput = document.getElementById("new-player-name");
 const addPlayerMessage = document.getElementById("add-player-message");
@@ -156,6 +162,10 @@ function setupTabs() {
       if (targetTab === "history") {
         historyPage = 1;
         renderHistory();
+      }
+      if (targetTab === "dashboard") {
+        dashboardPage = 1;
+        updateDashboard();
       }
     });
   });
@@ -512,13 +522,22 @@ function renderDashboardEloGraph(eloHistory) {
 function renderDashboardMatchHistory(playerName) {
   if (!dashboardMatchHistory) return;
   const name = playerName.trim().toLowerCase();
+  // `matches` is oldest-first, so reversing gives newest-first (also within a single day).
   const playerMatches = matches
     .filter((m) => m.player1.toLowerCase() === name || m.player2.toLowerCase() === name)
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .reverse();
   if (playerMatches.length === 0) {
     dashboardMatchHistory.innerHTML = '<p class="panel-note">No matches yet.</p>';
+    dashboardPagination.hidden = true;
     return;
   }
+  const totalPages = Math.ceil(playerMatches.length / DASHBOARD_PAGE_SIZE);
+  dashboardPage = Math.min(Math.max(dashboardPage, 1), totalPages);
+  const start = (dashboardPage - 1) * DASHBOARD_PAGE_SIZE;
+  dashboardPagination.hidden = totalPages <= 1;
+  dashboardPageLabel.textContent = `Page ${dashboardPage} of ${totalPages}`;
+  dashboardPrevButton.disabled = dashboardPage <= 1;
+  dashboardNextButton.disabled = dashboardPage >= totalPages;
   const table = document.createElement("table");
   table.className = "dashboard-match-table";
   table.innerHTML = `
@@ -534,7 +553,7 @@ function renderDashboardMatchHistory(playerName) {
     <tbody></tbody>
   `;
   const tbody = table.querySelector("tbody");
-  playerMatches.forEach((m) => {
+  playerMatches.slice(start, start + DASHBOARD_PAGE_SIZE).forEach((m) => {
     const isP1 = m.player1.toLowerCase() === name;
     const opponent = isP1 ? m.player2 : m.player1;
     const myScore = isP1 ? m.score1 : m.score2;
@@ -582,6 +601,7 @@ function updateDashboard() {
     }
     if (dashboardEloGraph) dashboardEloGraph.style.display = "none";
     if (dashboardMatchHistory) dashboardMatchHistory.innerHTML = '<p class="panel-note">Select a player to see their matches.</p>';
+    dashboardPagination.hidden = true;
     return;
   }
   const stats = computePlayerDashboardStats(playerName);
@@ -607,9 +627,20 @@ function populateDashboardSelect() {
   updateDashboard();
 }
 
+function changeDashboardPage(delta) {
+  dashboardPage += delta;
+  updateDashboard();
+  dashboardMatchHistory.scrollIntoView({ block: "start" });
+}
+
 function setupDashboardTab() {
   if (!dashboardPlayerSelect) return;
-  dashboardPlayerSelect.addEventListener("change", updateDashboard);
+  dashboardPlayerSelect.addEventListener("change", () => {
+    dashboardPage = 1;
+    updateDashboard();
+  });
+  dashboardPrevButton.addEventListener("click", () => changeDashboardPage(-1));
+  dashboardNextButton.addEventListener("click", () => changeDashboardPage(1));
 }
 
 function showAddPlayerMessage(messageText, messageType) {
