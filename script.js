@@ -15,6 +15,12 @@ const successMatchSavedMessage = document.getElementById("success-match-saved");
 const scoreboardBody = document.getElementById("scoreboard-body");
 const sortButtons = document.querySelectorAll(".sort-button");
 const historyList = document.getElementById("history-list");
+const historyPagination = document.getElementById("history-pagination");
+const historyPrevButton = document.getElementById("history-prev");
+const historyNextButton = document.getElementById("history-next");
+const historyPageLabel = document.getElementById("history-page-label");
+const HISTORY_PAGE_SIZE = 50;
+let historyPage = 1;
 const matchupPlayer1Select = document.getElementById("matchup-player1");
 const matchupPlayer2Select = document.getElementById("matchup-player2");
 const matchupElo1 = document.getElementById("matchup-elo1");
@@ -146,6 +152,11 @@ function setupTabs() {
 
       button.classList.add("active");
       document.getElementById(targetTab).classList.add("active");
+
+      if (targetTab === "history") {
+        historyPage = 1;
+        renderHistory();
+      }
     });
   });
 }
@@ -675,17 +686,27 @@ async function seedDefaultPlayersIfNeeded() {
 async function fetchMatchesFromDatabase() {
   if (!supabaseClient) return [];
 
-  const { data, error } = await supabaseClient
-    .from("matches")
-    .select("id, player1_name, player2_name, score1, score2, match_date, elo_change1, elo_change2, created_at")
-    .order("created_at", { ascending: true });
+  // Supabase caps a single response at 1000 rows, so page through the table.
+  const PAGE_SIZE = 1000;
+  const data = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page, error } = await supabaseClient
+      .from("matches")
+      .select("id, player1_name, player2_name, score1, score2, match_date, elo_change1, elo_change2, created_at")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) {
-    showDatabaseError("loading matches", error);
-    return [];
+    if (error) {
+      showDatabaseError("loading matches", error);
+      return [];
+    }
+
+    data.push(...page);
+    if (page.length < PAGE_SIZE) break;
   }
 
-  return (data || []).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     player1: row.player1_name,
     player2: row.player2_name,
@@ -864,14 +885,25 @@ function formatMatchDate(dateValue) {
 function renderHistory() {
   if (matches.length === 0) {
     historyList.innerHTML = '<p class="panel-note">No saved matches yet.</p>';
+    historyPagination.hidden = true;
     return;
   }
+
+  const totalPages = Math.ceil(matches.length / HISTORY_PAGE_SIZE);
+  historyPage = Math.min(Math.max(historyPage, 1), totalPages);
+  const start = (historyPage - 1) * HISTORY_PAGE_SIZE;
+
+  historyPagination.hidden = totalPages <= 1;
+  historyPageLabel.textContent = `Page ${historyPage} of ${totalPages}`;
+  historyPrevButton.disabled = historyPage <= 1;
+  historyNextButton.disabled = historyPage >= totalPages;
 
   historyList.innerHTML = "";
 
   matches
     .slice()
     .reverse()
+    .slice(start, start + HISTORY_PAGE_SIZE)
     .forEach((match) => {
       const item = document.createElement("div");
       item.className = "history-item";
@@ -905,6 +937,15 @@ function renderHistory() {
       historyList.appendChild(item);
     });
 }
+
+function changeHistoryPage(delta) {
+  historyPage += delta;
+  renderHistory();
+  historyList.scrollIntoView({ block: "start" });
+}
+
+historyPrevButton.addEventListener("click", () => changeHistoryPage(-1));
+historyNextButton.addEventListener("click", () => changeHistoryPage(1));
 
 function calculateScoreboardRows(matchRows) {
   const statsByPlayer = {};
@@ -1109,6 +1150,7 @@ function setupMatchForm() {
       matches = await fetchMatchesFromDatabase();
       matchForm.reset();
       showMatchSavedMessage();
+      historyPage = 1;
       renderHistory();
       renderScoreboard();
       updateMatchupDisplay();
